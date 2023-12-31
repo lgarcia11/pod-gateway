@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# Trap SIGTERM and exit
+trap 'exit 0' SIGTERM
+
 # Load main settings
 cat /default_config/settings.sh
 . /default_config/settings.sh
