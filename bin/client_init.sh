@@ -26,7 +26,7 @@ ip route del 0/0 || /bin/true
 
 # We don't support IPv6 at the moment, so delete default route to prevent leaking traffic.
 echo "Deleting existing default IPv6 route to prevent leakage"
-ip route -6 del default || /bin/true
+ip -6 route del default || /bin/true
 
 # After this point nothing should be reachable -> check
 if ping -c 1 -W 1000 8.8.8.8; then
@@ -38,10 +38,20 @@ fi
 ip addr
 ip route
 
+# Handle hostnames in K8s pod environments
+if [ -n "$KUBERNETES_SERVICE_HOST" ]; then # if this env var exists, it's probably K8s
+  # In Kubernetes, extract the base pod name before the first dash
+  HOSTNAME_REAL=$(hostname | cut -d'-' -f1)
+else
+  # In Docker or other environments, use the full hostname
+  HOSTNAME_REAL=$(hostname)
+fi
+echo $HOSTNAME_REAL
+
 # Derived settings
 K8S_DNS_IP="$(cut -d ' ' -f 1 <<< "$K8S_DNS_IPS")"
 GATEWAY_IP="$(dig +short "$GATEWAY_NAME" "@${K8S_DNS_IP}")"
-NAT_ENTRY="$(grep "^$(hostname) " /config/nat.conf || true)"
+NAT_ENTRY="$(grep "^$HOSTNAME_REAL " /config/nat.conf || true)"
 VXLAN_GATEWAY_IP="${VXLAN_IP_NETWORK}.1"
 
 # Make sure there is correct route for gateway
@@ -58,7 +68,7 @@ ip route
 ping -c "${CONNECTION_RETRY_COUNT}" "$GATEWAY_IP"
 
 # Create tunnel NIC
-ip link add vxlan0 type vxlan id "$VXLAN_ID" dev eth0 dstport 0 || true
+ip link add vxlan0 type vxlan id "$VXLAN_ID" dev eth0 dstport "${VXLAN_PORT:-0}" || true
 bridge fdb append to 00:00:00:00:00:00 dst "$GATEWAY_IP" dev vxlan0
 ip link set up dev vxlan0
 if [[ -n "$VPN_INTERFACE_MTU" ]]; then
@@ -96,6 +106,8 @@ EOF
 # Configure IP and default GW though the gateway docker
 if [[ -z "$NAT_ENTRY" ]]; then
   echo "Get dynamic IP"
+  # cleanup old processes if they exist
+  killall -q dhclient || true
   dhclient -v -cf /etc/dhclient.conf vxlan0
 else
   IP=$(cut -d' ' -f2 <<< "$NAT_ENTRY")
