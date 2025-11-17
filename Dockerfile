@@ -1,4 +1,4 @@
-FROM alpine:3.20.3@sha256:beefdbd8a1da6d2915566fde36db9db0b524eb737fc57cd1367effd16dc0d06d
+FROM alpine:3.22.2@sha256:4b7ce07002c69e8f3d704a9c5d6fd3053be500b7f1c69fc0d80990c2ad8dd412
 WORKDIR /
 
 # iproute2 -> bridge
@@ -8,7 +8,7 @@ WORKDIR /
 # coreutils -> need REAL chown and chmod for dhclient (it uses reference option not supported in busybox)
 # bash -> for scripting logic
 # inotify-tools -> inotifyd for dnsmask resolv.conf reload circumvention
-RUN apk add --no-cache coreutils dnsmasq-dnssec iproute2 bind-tools dhclient bash inotify-tools ip6tables
+RUN apk add --no-cache coreutils dnsmasq-dnssec iproute2 bind-tools bash inotify-tools ip6tables
 
 COPY config /default_config
 COPY config /config

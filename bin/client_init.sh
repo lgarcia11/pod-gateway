@@ -83,32 +83,12 @@ if [[ -n "$VPN_INTERFACE_MTU" ]]; then
   fi
 fi
 
-cat << EOF > /etc/dhclient.conf
-backoff-cutoff 2;
-initial-interval 1;
-reboot 0;
-retry 10;
-select-timeout 0;
-timeout 30;
-
-interface "vxlan0"
- {
-  request subnet-mask,
-          broadcast-address,
-          routers;
-          #domain-name-servers;
-  require routers,
-          subnet-mask;
-          #domain-name-servers;
- }
-EOF
-
 # Configure IP and default GW though the gateway docker
 if [[ -z "$NAT_ENTRY" ]]; then
   echo "Get dynamic IP"
   # cleanup old processes if they exist
-  killall -q dhclient || true
-  dhclient -v -cf /etc/dhclient.conf vxlan0
+  killall -q udhcpc || true
+  udhcpc --now --interface=vxlan0
 else
   IP=$(cut -d' ' -f2 <<< "$NAT_ENTRY")
   VXLAN_IP="${VXLAN_IP_NETWORK}.${IP}"
